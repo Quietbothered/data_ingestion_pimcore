@@ -1,2 +1,16 @@
-./venv
-**/tests/test_data/**
+# Virtual environments
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Test artifacts
+tests/test_data/
+
+# Environment files
+.env
+
+# Logs
+*.log
