@@ -10,7 +10,8 @@ class IngestResponse(BaseModel):
     total_rows: int
     # page_number               
     page: int
-    page_size: int
+    chunk_size_by_records: Optional[int] = None
+    chunk_size_by_memory: Optional[int] = None
     # dataframe memory usage
     df_memory_usage_mb: float = Field(default_factory = 0.0)
     df_memory_usage_bytes : int = Field(default_factory = 0)

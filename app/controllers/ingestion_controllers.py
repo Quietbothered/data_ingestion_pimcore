@@ -18,26 +18,14 @@ class IngestionController:
         self.memory_service = DataFrameMemoryService()
 
     def ingest(self, request: IngestionRequest) -> IngestResponse:
-        # Request parameter validation logic
-        if not request.file_path:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.FILE_URL_IS_NONE.value
-            )
-
-        if not request.file_type:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.FILE_TYPE_IS_NONE.value
-            )
-
         # Ingestion logic
         try:
             # paginated read json data logic
             records, total_rows, page_dfs = self.json_ingestion_service.read_paginated(
                 path=request.file_path,
                 page=request.page,
-                page_size=request.page_size
+                chunk_size_by_records=request.chunk_size_by_records,
+                chunk_size_by_memory=request.chunk_size_by_memory
             )
 
         # Exception handling 
@@ -77,7 +65,7 @@ class IngestionController:
             rows=len(records),
             total_rows=total_rows,
             page=request.page,
-            page_size=request.page_size,
+            chunk_size_by_records=request.chunk_size_by_records,
             df_memory_usage_mb=memory_mb,
             df_memory_usage_bytes=memory_bytes,
             data=records
