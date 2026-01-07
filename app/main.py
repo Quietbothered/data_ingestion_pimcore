@@ -7,6 +7,7 @@ from app.api.ingest_data import router as ingest_data_router
 app = FastAPI(title = "Data Ingestion Service")
 
 # include custome routes here
+# ingest_data router
 app.include_router(ingest_data_router, prefix="/api")
 
 # Global error exception response handler
