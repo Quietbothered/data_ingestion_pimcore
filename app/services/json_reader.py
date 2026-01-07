@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple
 
 class JsonIngestionService:
     # This method is capable of reading multiple files from the folder [with read pagination]
-    def read_paginated(self,path:str, page:int, page_size:str) -> Tuple[List[Dict],int]:
+    def read_paginated(self,path:str, page:int, page_size:int) -> Tuple[List[Dict],int, List[pd.DataFrame]]:
         """
         Stream JSON files from a file or dictonary and return : 
         - Paginated records 
@@ -16,6 +16,7 @@ class JsonIngestionService:
         limit = page_size
 
         collected : List[Dict] = []
+        collected_dfs: List[pd.DataFrame] = []
         current_index = 0
         total_rows = 0
 
@@ -28,11 +29,11 @@ class JsonIngestionService:
 
             for file in files:
                 with fs.open(file,'r') as f:
-                    df = pd.read_json(f)
+                    df = pd.read_json(f,orient="records",dtype=False)
 
                 records = df.to_dict(orient="records")
 
-                for record in records:
+                for idx, record in enumerate(records):
                     # always count total rows
                     total_rows += 1
                     
@@ -44,9 +45,9 @@ class JsonIngestionService:
                     # Collect page data 
                     if len(collected) < limit:
                         collected.append(record)
+                        collected_dfs.append(df.iloc[[idx]])
                         current_index += 1
                     else:
                         # page is full --> stop early
-                        return collected, total_rows
-                    
-        return collected, total_rows
+                        return collected, total_rows, collected_dfs                   
+        return collected, total_rows, collected_dfs

@@ -11,4 +11,7 @@ class IngestResponse(BaseModel):
     # page_number               
     page: int
     page_size: int
+    # dataframe memory usage
+    df_memory_usage_mb: float = Field(default_factory = 0.0)
+    df_memory_usage_bytes : int = Field(default_factory = 0)
     data: List[Dict[str, Any]] = Field(default_factory=list)
