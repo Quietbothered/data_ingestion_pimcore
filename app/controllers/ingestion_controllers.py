@@ -25,7 +25,12 @@ class IngestionController:
 
         # Ingestion logic
         try:
-            records = self.json_ingestion_service.read(request.file_path)
+            # paginated read json data logic
+            records, total_rows = self.json_ingestion_service.read_paginated(
+                path=request.file_path,
+                page=request.page,
+                page_size=request.page_size
+            )
 
         # Exception handling 
         except FileNotFoundError as e:
@@ -46,17 +51,11 @@ class IngestionController:
                 detail=ErrorMessages.INTERNAL_SERVER_ERROR.value
             )
 
-        # Pagination logic
-        total_rows = len(records)
-        start = (request.page - 1) * request.page_size
-        end = start + request.page_size
-        paginated_records = records[start:end]
-
         return IngestResponse(
             status=status.HTTP_200_OK,
-            rows=len(paginated_records),
+            rows=len(records),
             total_rows=total_rows,
             page=request.page,
             page_size=request.page_size,
-            data=paginated_records
+            data=records
         )
