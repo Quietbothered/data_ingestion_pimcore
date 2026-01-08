@@ -12,45 +12,28 @@ from app.utils.error_messages import ErrorMessages
 # import services here
 from app.services.json_reader import JsonIngestionService
 from app.services.memory_monitoring import DataFrameMemoryService
-from app.services.excel_reader import ExcelIngestionService # import excel ingestion service
 
 class IngestionController:
     def __init__(self):
         self.streamer = JsonIngestionService()
-        self.excel_ingestion_service = ExcelIngestionService()
-
 
     def ingest(self, request, bg: BackgroundTasks) -> IngestStartResponse:
         ingestion_id = str(uuid.uuid4())
         try:
-            bg.add_task(
-                self.streamer.stream_and_push,
-                ingestion_id,
-                request
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.FILE_TYPE_IS_NONE.value
-            )
-
-        # Ingestion logic
-        try:
-            # paginated read json data logic
-            # records, total_rows, page_dfs = self.json_ingestion_service.read_paginated(
-            #     path=request.file_path,
-            #     page=request.page,
-            #     page_size=request.page_size
+            # bg.add_task(
+            #     self.streamer.stream_and_push,
+            #     ingestion_id,
+            #     request
             # )
             if request.file_type.lower() == "json":
-                records, total_rows, page_dfs = self.json_ingestion_service.read_paginated(
-                    path=request.file_path,
-                    page=request.page,
-                    page_size=request.page_size
+                    bg.add_task(
+                    self.streamer.stream_and_push,
+                    ingestion_id,
+                    request
                 )
 
             elif request.file_type.lower() == "excel":
-                records, total_rows, page_dfs = self.excel_ingestion_service.read_paginated(
+                self.excel_ingestion_service.read_paginated(
                     path=request.file_path,
                     page=request.page,
                     page_size=request.page_size
@@ -61,50 +44,15 @@ class IngestionController:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=ErrorMessages.INVALID_FILE_TYPE.value
                 )
-
-        # Exception handling 
-        except FileNotFoundError as e:
+        except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
             )
 
         return IngestStartResponse(
             status="STARTED",
             ingestion_id=ingestion_id
-        # Invalid json file exception handling
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(e)
-            )
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(e)
-            )
-        
-        # Memory taken by the dataframe
-        memory_mb = round(
-            sum(
-                self.memory_service.calculate_bytes(df)
-                for df in page_dfs
-            ) / (1024 * 1024),
-            2  # round to 2 decimal places
         )
-        memory_bytes = sum(
-                self.memory_service.calculate_bytes(df)
-                for df in page_dfs
-            ) 
 
-        return IngestResponse(
-            status=status.HTTP_200_OK,
-            rows=len(records),
-            total_rows=total_rows,
-            page=request.page,
-            page_size=request.page_size,
-            df_memory_usage_mb=memory_mb,
-            df_memory_usage_bytes=memory_bytes,
-            data=records
-        )
+ 
