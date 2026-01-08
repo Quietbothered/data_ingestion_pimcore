@@ -15,7 +15,7 @@ async def receive_chunk(request: Request):
     payload = await request.json()
     received_chunks.append(payload)
 
-    print("📦 RECEIVED CHUNK")
+    print(">>>>> RECEIVED CHUNK <<<<<")
     print(payload)
 
     return {"status": "OK"}
