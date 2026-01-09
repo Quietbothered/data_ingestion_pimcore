@@ -39,7 +39,7 @@ class ExcelIngestionService:
                 chunk.append(record)
                 total_records += 1
 
-                if request.chunk_size_by_records and len(chunk) >= request.chunk_size_by_records:
+                if len(chunk) >= request.chunk_size_by_records:
                     await self._send_chunk(
                         client,
                         request.callback_url,
