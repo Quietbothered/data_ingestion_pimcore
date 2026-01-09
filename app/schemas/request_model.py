@@ -2,14 +2,16 @@ from pydantic import BaseModel, Field, model_validator
 from fastapi import HTTPException, status
 from typing import List, Dict, Any, Optional
 from app.utils.error_messages import ErrorMessages
+from app.utils.field_descriptions import RequestFieldDescriptions
+
 class IngestionRequest(BaseModel):
-    file_path : str = Field(default=None, description="Input file path or url")
-    file_type : str = Field(default="json", description="Type of input file you want to ingest (JSON or EXCEL)")
+    file_path : str = Field(default=None, description=RequestFieldDescriptions.FILE_PATH.value)
+    file_type : str = Field(default="json", description=RequestFieldDescriptions.FILE_TYPE.value)
     # page: int = Field(default=1, ge=1, description="Page number (1-based)") # remove this 
-    callback_url : str = Field(default=None,description="Send data to pim-core using this call-back url")
-    chunk_size_by_records: Optional[int] = Field(default=None, ge=1, le=4000, description="Define your chunk size by number of records per chunk")
+    callback_url : str = Field(default=None,description=RequestFieldDescriptions.CALLBACK_URL.value)
+    chunk_size_by_records: Optional[int] = Field(default=None, ge=1, le=4000, description=RequestFieldDescriptions.CHUNK_SIZE_BY_RECORDS.value)
     # Do NOT exceed memory under ANY circumstances — even for the first row 
-    chunk_size_by_memory: Optional[int] = Field(default=None,description = "Define your chunk size by memory taken by dataframe in bytes")
+    chunk_size_by_memory: Optional[int] = Field(default=None,description = RequestFieldDescriptions.CHUNK_SIZE_BY_MEMORY.value)
     
     @model_validator(mode="after")
     def validate_chunking_mode(self):

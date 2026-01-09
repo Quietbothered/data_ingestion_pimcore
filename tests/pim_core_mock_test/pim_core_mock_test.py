@@ -11,26 +11,6 @@ from schemas.response_model import PimCoreCallBackResponse, InnerResponseContent
 
 app = FastAPI()
 
-# old_code [working]
-# received_chunks = []
-
-# @app.post("/callback")
-# async def receive_chunk(request: Request):
-#     payload = await request.json()
-#     received_chunks.append(payload)
-
-#     print(">>>>> RECEIVED CHUNK <<<<<")
-#     print(payload)
-
-#     return {"status": "OK"}
-
-# @app.get("/received")
-# def get_received():
-#     return {
-#         "total_chunks": len(received_chunks),
-#         "chunks": received_chunks
-#     }
-
 # new code with ACK/NACK implementation to make the ingestion pipeline resilient to failures
 total_records_recieved = 0
 @app.post("/callback")
