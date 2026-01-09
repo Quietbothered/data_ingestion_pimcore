@@ -31,6 +31,10 @@ class ExcelIngestionService:
 
         async with httpx.AsyncClient(timeout=60) as client:
             for row in rows:
+                
+                if not any(row):
+                    continue
+                
                 record = {
                     headers[i]: row[i]
                     for i in range(len(headers))
