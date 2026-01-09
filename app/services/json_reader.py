@@ -74,6 +74,7 @@ class JsonIngestionService:
                 json={
                     "ingestion_id": ingestion_id,
                     "status": "COMPLETED",
+                    "chunk_number":chunk_number,
                     "total_records": total_records
                 }
             )
@@ -106,7 +107,18 @@ class JsonIngestionService:
                     content=orjson.dumps(payload, default=orjson_default),
                     headers={"Content-Type": "application/json"}
                 )
+                # old code that assumes the has been saved properly [without ACK validation]
+                # resp.raise_for_status()
+
+                # Re-write the logic using ACK validation for fault tolerant system and re-tries
                 resp.raise_for_status()
+                ack_response = resp.json()
+                ack = ack_response.get("content").get("ack")
+                # raise exception when the chunk is rejected due to errors 
+                if ack is not True:
+                    raise Exception(
+                        f"Chunk {chunk_number} rejected: {ack_response.get('error')}"
+                )
                 return
             except Exception:
                 if attempt == 2:
