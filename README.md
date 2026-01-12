@@ -172,3 +172,22 @@ Utilities are:
 - Side-effect free (mostly)
 - Not domain-specific
 
+## How to run the project?
+If you want to run just the microservice then you need to do this : <br>
+Go to this directory 
+```bash
+cd /home/aditya/github/data_ingestion_pimcore
+```
+and then run this command 
+```bash
+uvicorn app.main:app --reload
+```
+But if you want to also test this microservice before you integrate it with your pim-core project then you also need to do this : 
+```bash
+cd /home/aditya/github/data_ingestion_pimcore/tests/pim_core_mock_test
+```
+and run this command 
+```bash
+uvicorn pim_core_mock_test:app --port 9000 --reload
+```
+This command will run a mock pim-core callback url and this particular url is used by the microservice to dump all the streamed data.
