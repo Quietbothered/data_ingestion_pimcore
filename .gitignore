@@ -13,4 +13,4 @@ tests/test_data/
 .env
 
 # Logs
-*.log
+*/logs/*
