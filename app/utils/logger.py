@@ -18,6 +18,8 @@ class LoggerFactory:
         log_file: Path,
         level: int
     ) -> logging.Logger:
+        LogInitializer.initialize()
+
         logger = logging.getLogger(name)
         logger.setLevel(level)
 
