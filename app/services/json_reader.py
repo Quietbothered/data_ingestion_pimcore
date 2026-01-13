@@ -152,13 +152,13 @@ class JsonIngestionService:
                 if ack is not True:
                     if ack_response.get("error") == ErrorMessages.OUT_OF_ORDER_CHUNK.value:
                         # Write the logic to handle the case when we get the chunk out of order error 
-                        error_logger.error(f"JsonIngestionService._send_chunk | Chunk {chunk_number} rejected: {ack_response.get("error")}")
+                        error_logger.error(f"JsonIngestionService._send_chunk | Chunk {chunk_number} rejected: {ack_response.get('error')}")
                         raise Exception(
-                                f"Chunk {chunk_number} rejected: {ack_response.get("error")}"
+                                f"Chunk {chunk_number} rejected: {ack_response.get('error')}"
                         )
-                    error_logger.error(f"JsonIngestionService._send_chunk | Chunk {chunk_number} rejected: {ack_response.get("error")}") 
+                    error_logger.error(f"JsonIngestionService._send_chunk | Chunk {chunk_number} rejected: {ack_response.get('error')}") 
                     raise Exception(
-                        f"Chunk {chunk_number} rejected: {ack_response.get("error")}"
+                        f"Chunk {chunk_number} rejected: {ack_response.get('error')}"
                 )
                 return
             except Exception as e:
