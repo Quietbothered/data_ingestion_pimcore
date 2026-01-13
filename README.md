@@ -431,3 +431,72 @@ sequenceDiagram
     Service->>Pimcore: POST status=COMPLETED
     Pimcore-->>Service: ACK COMPLETED
 ```
+
+
+
+
+
+
+
+
+
+
+What happens today (exact behavior)
+Scenario
+
+FastAPI ingestion service is dockerized
+
+It starts streaming JSON
+
+It sends chunks 0…N to PIM Core
+
+PIM Core successfully persists those chunks
+
+FastAPI container crashes/restarts
+
+PIM Core re-triggers ingestion with:
+
+same file_path
+
+same data
+
+FastAPI generates a new ingestion_id
+
+Starts streaming from record 0 again
+
+What breaks?
+❌ Problem 1: Ingestion ID changes
+ingestion_id = str(uuid.uuid4())
+
+
+New ingestion_id = PIM Core sees this as a brand-new ingestion
+
+Chunk IDs differ → duplicate detection fails
+
+❌ Problem 2: FastAPI has no state
+
+No persisted:
+
+last sent chunk number
+
+last acknowledged chunk
+
+last byte offset / record index
+
+Restart = total amnesia
+
+❌ Problem 3: PIM Core validator only protects within one ingestion_id
+self.last_chunk_number[ingestion_id]
+
+
+New ingestion_id → validator resets
+
+PIM Core accepts duplicate data
+
+DB ends up with duplicated rows
+
+❌ Verdict
+
+Your current system is NOT restart-safe and NOT exactly-once.
+
+It is at-most-once per container lifetime.

@@ -12,6 +12,9 @@ from app.utils.logger import LoggerFactory
 # import info logger messages
 from app.utils.logger_info_messages import LoggerInfoMessages
 
+# import utility to generate ingestion id
+from app.utils.generate_ingestion_id import generate_ingestion_id
+
 # initialize logging utility
 info_logger = LoggerFactory.get_info_logger()
 error_logger = LoggerFactory.get_error_logger()
@@ -23,7 +26,7 @@ class IngestionController:
         self.excel_streamer = ExcelIngestionService()
 
     def ingest(self, request, bg: BackgroundTasks) -> IngestStartResponse:
-        ingestion_id = str(uuid.uuid4())
+        ingestion_id = generate_ingestion_id(request.file_path, request.file_type)
 
         try:
             if request.file_type.lower() == "json":
