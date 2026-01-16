@@ -6,8 +6,11 @@ from pathlib import Path
 # import get current project's directory utility
 from app.utils.get_project_dir import get_current_project_dir
 
+# import centralized configs for this microservice
+from app.core.config import MicroServiceConfigurations
+
 PROJECT_DIR = Path(get_current_project_dir()).parent
-DATABASE_DIR = os.path.join(PROJECT_DIR , "ingestion_state_data", "ingestion_state.db")
+DATABASE_DIR = os.path.join(PROJECT_DIR , MicroServiceConfigurations.DB_FOLDER_NAME.value, MicroServiceConfigurations.DB_NAME.value)
 
 class IngestionStateStore:
     def __init__(self, db_path=DATABASE_DIR):

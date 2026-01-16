@@ -28,7 +28,11 @@ async def receive_chunk(request: Request) -> PimCoreCallBackResponse:
     payload = await request.json()
 
     if payload.get("status") == "COMPLETED":
+        ingestion_id = payload.get("ingestion_id")
+
+        # reset the total records recieved after it gets the status completed from the fast-api microservice side
         total_records_recieved = 0
+
         print(">>>>INGESTION COMPLETED<<<<")
         print(f"Ingestion: {payload.get('ingestion_id')}")
         print(f"Total records: {payload.get('total_records')}")

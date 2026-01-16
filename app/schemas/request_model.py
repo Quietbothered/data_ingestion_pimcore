@@ -18,11 +18,15 @@ debug_logger = LoggerFactory.get_debug_logger()
 class IngestionRequest(BaseModel):
     file_path : str = Field(default=None, description=RequestFieldDescriptions.FILE_PATH.value)
     file_type : str = Field(default="json", description=RequestFieldDescriptions.FILE_TYPE.value)
-    # page: int = Field(default=1, ge=1, description="Page number (1-based)") # remove this 
     callback_url : str = Field(default=None,description=RequestFieldDescriptions.CALLBACK_URL.value)
     chunk_size_by_records: Optional[int] = Field(default=None, ge=1, le=4000, description=RequestFieldDescriptions.CHUNK_SIZE_BY_RECORDS.value)
     # Do NOT exceed memory under ANY circumstances — even for the first row 
     chunk_size_by_memory: Optional[int] = Field(default=None,description = RequestFieldDescriptions.CHUNK_SIZE_BY_MEMORY.value)
+    
+    re_ingestion: bool = Field(
+        default=False,
+        description="Force a new ingestion execution for the same file"
+    )
     
     @model_validator(mode="after")
     def validate_chunking_mode(self):

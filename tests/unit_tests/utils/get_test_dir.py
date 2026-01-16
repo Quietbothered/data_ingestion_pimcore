@@ -1,3 +1,7 @@
+"""
+No longer required 
+"""
+
 from pathlib import Path
 
 # import logging utility

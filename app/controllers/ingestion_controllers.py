@@ -13,7 +13,8 @@ from app.utils.logger import LoggerFactory
 from app.utils.logger_info_messages import LoggerInfoMessages
 
 # import utility to generate ingestion id
-from app.utils.generate_ingestion_id import generate_ingestion_id
+from app.utils.generate_ingestion_id import GenerateFileAndIngestionID
+import time
 
 # initialize logging utility
 info_logger = LoggerFactory.get_info_logger()
@@ -24,9 +25,21 @@ class IngestionController:
     def __init__(self):
         self.json_streamer = JsonIngestionService()
         self.excel_streamer = ExcelIngestionService()
+        self.ingesttion_and_file_id_generator = GenerateFileAndIngestionID()
 
     def ingest(self, request, bg: BackgroundTasks) -> IngestStartResponse:
-        ingestion_id = generate_ingestion_id(request.file_path, request.file_type)
+        file_id = self.ingesttion_and_file_id_generator.generate_file_id(request.file_path, request.file_type)
+
+        # If pim-core requests for data re-ingestion from the same file from this mciro-service
+        if request.re_ingestion:
+            # New execution
+            version = str(int(time.time() * 1000))
+        else:
+            # Resume semantic
+            version = "resume"
+
+        ingestion_id = self.ingesttion_and_file_id_generator.generate_ingestion_id(file_id, version)
+
         info_logger.info(f"IngestionController.ingest | This method will make decision based on what file type the client want to ingest data from and fire up the core logic of data ingestion based on the file type for either json files or for excel files.")
         try:
             if request.file_type.lower() == "json":

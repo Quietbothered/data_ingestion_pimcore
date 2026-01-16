@@ -8,6 +8,8 @@ My goal is to design a micro-service that is
 - network-fault tolerant 
 - chunk-exactly-once
 - externally ACK-driven
+- resume ingestion mechanism
+- re-ingestion mechanism
 
 This is **not a best-effort ingestion service** — correctness is prioritized over speed.
 
@@ -594,3 +596,82 @@ Then during streaming:
 self.total_records += 1
 ```
 So totals accumulate, not reset. This is intentional behavior, not an accident.
+
+## Implemented Data Re-Ingestion & Ingestion Versioning
+### Issue 1: Chunk mismatch / out-of-order errors
+- If the pim-core callback service was restarted, it lost its in-memory chunk state.
+- The FastAPI service resumed ingestion from a higher chunk number (because state was persisted in SQLite).
+- Pim-core expected chunk 0, but received chunk N → OUT_OF_ORDER_CHUNK.
+### Issue 2: Re-ingestion from the same file was logically ambiguous
+- Re-ingesting the same file reused the same ingestion_id.
+- Chunk numbers, total record counts, and progress were carried over from a previous run.
+- This caused:
+    - Incorrect total_records
+    - Incorrect chunk_number
+    - Confusing semantics (is this a resume or a new ingestion?)
+
+### Correct Mental Model (After Fix)
+- A file can be ingested multiple times.
+- Each ingestion is a separate execution.
+- Resume is allowed only within the same execution.
+
+So I separate identities:
+```python
+file_id        → deterministic
+ingestion_id   → versioned (execution-specific)
+```
+
+### What Was Implemented (Ingestion Versioning)
+#### Deterministic File Identity
+- Stable
+- Identifies what is being ingested
+- Never changes
+
+
+```python
+ingestion_id = sha256(file_id + version)
+```
+
+```python
+if request.re_ingestion:
+    version = str(int(time.time() * 1000))
+else:
+    version = "resume"
+```
+
+#### Resume Semantics (Correct & Intentional)
+When re_ingestion = false:
+- Same ingestion_id is reused
+- SQLite state is reused
+- Chunk numbers resume correctly
+- Total records resume correctly
+
+This supports:
+- Service restarts
+- Network failures
+- Partial ingestion recovery
+
+#### Re-Ingestion Semantics (New Behavior)
+When re_ingestion = true:
+- A new ingestion_id is generated
+- SQLite has no existing state for that ingestion_id
+- Chunk numbering starts from 0
+- total_records starts from 0
+- Pim-core treats it as a completely new ingestion
+
+This enables:
+- Backfills
+- Reprocessing corrupted data
+- Re-running ingestion after logic changes
+
+This is the request json that pim-core will have to send to fast-api data ingestion micro-service
+```json
+{
+  "file_path": "/home/aditya/github/data_ingestion_pimcore/tests/test_data/PIM_PRODIDSKU_20251222183200000_001.json",
+  "file_type": "json",
+  "callback_url": "http://127.0.0.1:9000/callback",
+  "chunk_size_by_records": 10,
+  "chunk_size_by_memory": 0,
+  "re_ingestion":true
+}
+```

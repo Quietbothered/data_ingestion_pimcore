@@ -8,7 +8,14 @@ info_logger = LoggerFactory.get_info_logger()
 error_logger = LoggerFactory.get_error_logger()
 debug_logger = LoggerFactory.get_debug_logger()
 
-def generate_ingestion_id(file_path: str, file_type: str) -> str:
-    info_logger.info(f"generate_ingestion_id | generate predictable ingestion id based on file name")
-    raw = f"{file_path}|{file_type}"
-    return hashlib.sha256(raw.encode()).hexdigest()
+class GenerateFileAndIngestionID:
+    @staticmethod
+    def generate_file_id(file_path: str, file_type: str) -> str:
+        info_logger.info(f"generate_file_id | generate predictable file id based on file name")
+        raw = f"{file_path}|{file_type}"
+        return hashlib.sha256(raw.encode()).hexdigest()
+    @staticmethod
+    def generate_ingestion_id(file_id: str, version: str) -> str:
+        info_logger.info(f"generate_ingestion_id | generate predictable ingestion id based on file name")
+        raw = f"{file_id}|{version}"
+        return hashlib.sha256(raw.encode()).hexdigest()
