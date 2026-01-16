@@ -8,6 +8,8 @@ My goal is to design a micro-service that is
 - network-fault tolerant 
 - chunk-exactly-once
 - externally ACK-driven
+- resume ingestion mechanism
+- re-ingestion mechanism
 
 This is **not a best-effort ingestion service** — correctness is prioritized over speed.
 
