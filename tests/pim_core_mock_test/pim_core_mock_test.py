@@ -30,9 +30,9 @@ async def receive_chunk(request: Request) -> PimCoreCallBackResponse:
     if payload.get("status") == "COMPLETED":
         total_records_recieved = 0
         print(">>>>INGESTION COMPLETED<<<<")
-        print(f"Ingestion: {payload.get("ingestion_id")}")
-        print(f"Total records: {payload.get("total_records")}")
-        print(f"Last chunk: {payload.get("chunk_number")}")
+        print(f"Ingestion: {payload.get('ingestion_id')}")
+        print(f"Total records: {payload.get('total_records')}")
+        print(f"Last chunk: {payload.get('chunk_number')}")
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
@@ -55,7 +55,7 @@ async def receive_chunk(request: Request) -> PimCoreCallBackResponse:
     ingestion_id = payload.get("ingestion_id")
     chunk_number = payload.get("chunk_number")
     records = payload.get("records", [])
-
+    
     print(">>>>> RECEIVED CHUNK <<<<<")
     total_records_recieved = total_records_recieved + len(records)
     print(f"Ingestion: {ingestion_id}, Chunk: {chunk_number}, Records: {len(records)}, Total_records_recieved : {total_records_recieved}")
