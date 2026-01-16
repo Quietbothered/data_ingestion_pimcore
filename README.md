@@ -1,6 +1,16 @@
 # data_ingestion_pimcore
 This repo holds the code for fast-api micro service for data ingestion from excel and json files and help improve the performance for data ingestion in a pim-core project
 
+## My goal
+My goal is to design a micro-service that is 
+- crash resistence 
+- restart-safe
+- network-fault tolerant 
+- chunk-exactly-once
+- externally ACK-driven
+
+This is **not a best-effort ingestion service** — correctness is prioritized over speed.
+
 ## Project architecture
 ### Directories 
 ```bash
@@ -12,37 +22,31 @@ app
 │   ├── ingestion_controllers.py
 ├── core
 │   ├── config.py
-│   └── __init__.py
+├── ingestion_state_data
+│   └── ingestion_state.db
 ├── logs
 │   ├── debug
-│   │   └── debug.log
 │   ├── error
-│   │   └── error.log
 │   └── info
-│       └── info.log
 ├── main.py
-├── old_code_backup
-│   ├── excel_reader_new1.py
-│   ├── excel_reader_new.py
-│   └── excel_reader_old.py
 ├── schemas
-│   ├── __init__.py
 │   ├── request_model.py
 │   └── response_model.py
 ├── services
 │   ├── data_integrity_manager.py
 │   ├── excel_reader.py
-│   ├── __init__.py
+│   ├── ingestion_state_store.py
 │   ├── json_reader.py
-└── utils
-    ├── error_messages.py
-    ├── field_descriptions.py
-    ├── __init__.py
-    ├── json_decimal_encoder.py
-    ├── logger_info_messages.py
-    ├── logger.py
-    ├── log_initializer.py
-    ├── logs_re_namer.py
+├── utils
+│   ├── error_messages.py
+│   ├── field_descriptions.py
+│   ├── generate_ingestion_id.py
+│   ├── get_project_dir.py
+│   ├── json_decimal_encoder.py
+│   ├── logger.py
+│   ├── logger_info_messages.py
+│   ├── log_initializer.py
+│   └── logs_re_namer.py
 ```
 
 #### **app/api/**
@@ -402,35 +406,6 @@ This makes:
 - Debugging ingestion issues practical
 - Auditing possible
 - Post-mortems feasible
-
-## Sequence Diagram 
-Below is a runtime sequence for a complete ingestion. 
-```bash
-sequenceDiagram
-    participant Client
-    participant API as FastAPI API
-    participant Controller
-    participant Service as JsonIngestionService
-    participant Pimcore
-
-    Client->>API: POST /api/ingest
-    API->>Controller: validate request
-    Controller->>Service: start ingestion (background task)
-    API-->>Client: 200 STARTED + ingestion_id
-
-    loop For each record
-        Service->>Service: stream record (ijson)
-        Service->>Service: accumulate chunk
-        Service->>Pimcore: POST chunk (records, checksum, chunk_id)
-        Pimcore-->>Service: ACK / NACK
-        alt NACK
-            Service->>Service: retry chunk (max 3)
-        end
-    end
-
-    Service->>Pimcore: POST status=COMPLETED
-    Pimcore-->>Service: ACK COMPLETED
-```
 
 ## Scenario: FastAPI crashes AFTER COMPLETED is sent
 ```python
