@@ -12,3 +12,9 @@ class ErrorMessages(Enum):
 
     # error message sent by pim-core in the response
     OUT_OF_ORDER_CHUNK = "Out-of-order chunk"
+    
+
+class ExcelErrorMessages(Enum):
+    EMPTY_HEADER = "Excel header row is empty | ingestion_id={ingestion_id}"
+    CHUNK_REJECTED = "Excel chunk rejected | chunk_number={chunk_number} | reason={reason}"
+    CHUNK_PUSH_FAILED = "Excel chunk push failed | chunk_number={chunk_number} | attempt={attempt} | error={error}"
