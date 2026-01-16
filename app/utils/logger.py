@@ -7,6 +7,8 @@ from app.utils.logs_re_namer import numbered_log_namer
 
 from app.utils.log_initializer import BASE_LOG_DIR
 
+from app.core.config import MicroServiceConfigurations
+
 class LoggerFactory:
     """
     Provides configured loggers for different log levels.
@@ -36,12 +38,12 @@ class LoggerFactory:
         handler.namer = numbered_log_namer
 
         formatter = logging.Formatter(
-            "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+            MicroServiceConfigurations.LOG_FILES_CONTENT_FORMATTER.value
         )
 
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        logger.propagate = False
+        logger.propagate = MicroServiceConfigurations.PROPOGATE_LOGS.value
 
         return logger
 
@@ -50,7 +52,7 @@ class LoggerFactory:
         LogInitializer.initialize()
         return cls._create_logger(
             name="error_logger",
-            log_file=Path(f"{BASE_LOG_DIR}/error/error.log"),
+            log_file=Path(f"{BASE_LOG_DIR}{MicroServiceConfigurations.ERROR_LOG_DIR.value}"),
             level=logging.ERROR
         )
 
@@ -59,7 +61,7 @@ class LoggerFactory:
         LogInitializer.initialize()
         return cls._create_logger(
             name="info_logger",
-            log_file=Path(f"{BASE_LOG_DIR}/info/info.log"),
+            log_file=Path(f"{BASE_LOG_DIR}{MicroServiceConfigurations.INFO_LOG_DIR.value}"),
             level=logging.INFO
         )
 
@@ -68,6 +70,6 @@ class LoggerFactory:
         LogInitializer.initialize()
         return cls._create_logger(
             name="debug_logger",
-            log_file=Path(f"{BASE_LOG_DIR}/debug/debug.log"),
+            log_file=Path(f"{BASE_LOG_DIR}{MicroServiceConfigurations.DEBUG_LOG_DIR.value}"),
             level=logging.DEBUG
         )
