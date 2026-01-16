@@ -1,6 +1,16 @@
 # data_ingestion_pimcore
 This repo holds the code for fast-api micro service for data ingestion from excel and json files and help improve the performance for data ingestion in a pim-core project
 
+## My goal
+My goal is to design a micro-service that is 
+- crash resistence 
+- restart-safe
+- network-fault tolerant 
+- chunk-exactly-once
+- externally ACK-driven
+
+This is **not a best-effort ingestion service** — correctness is prioritized over speed.
+
 ## Project architecture
 ### Directories 
 ```bash
@@ -12,37 +22,31 @@ app
 │   ├── ingestion_controllers.py
 ├── core
 │   ├── config.py
-│   └── __init__.py
+├── ingestion_state_data
+│   └── ingestion_state.db
 ├── logs
 │   ├── debug
-│   │   └── debug.log
 │   ├── error
-│   │   └── error.log
 │   └── info
-│       └── info.log
 ├── main.py
-├── old_code_backup
-│   ├── excel_reader_new1.py
-│   ├── excel_reader_new.py
-│   └── excel_reader_old.py
 ├── schemas
-│   ├── __init__.py
 │   ├── request_model.py
 │   └── response_model.py
 ├── services
 │   ├── data_integrity_manager.py
 │   ├── excel_reader.py
-│   ├── __init__.py
+│   ├── ingestion_state_store.py
 │   ├── json_reader.py
-└── utils
-    ├── error_messages.py
-    ├── field_descriptions.py
-    ├── __init__.py
-    ├── json_decimal_encoder.py
-    ├── logger_info_messages.py
-    ├── logger.py
-    ├── log_initializer.py
-    ├── logs_re_namer.py
+├── utils
+│   ├── error_messages.py
+│   ├── field_descriptions.py
+│   ├── generate_ingestion_id.py
+│   ├── get_project_dir.py
+│   ├── json_decimal_encoder.py
+│   ├── logger.py
+│   ├── logger_info_messages.py
+│   ├── log_initializer.py
+│   └── logs_re_namer.py
 ```
 
 #### **app/api/**
@@ -403,31 +407,190 @@ This makes:
 - Auditing possible
 - Post-mortems feasible
 
-## Sequence Diagram 
-Below is a runtime sequence for a complete ingestion. 
-```bash
-sequenceDiagram
-    participant Client
-    participant API as FastAPI API
-    participant Controller
-    participant Service as JsonIngestionService
-    participant Pimcore
-
-    Client->>API: POST /api/ingest
-    API->>Controller: validate request
-    Controller->>Service: start ingestion (background task)
-    API-->>Client: 200 STARTED + ingestion_id
-
-    loop For each record
-        Service->>Service: stream record (ijson)
-        Service->>Service: accumulate chunk
-        Service->>Pimcore: POST chunk (records, checksum, chunk_id)
-        Pimcore-->>Service: ACK / NACK
-        alt NACK
-            Service->>Service: retry chunk (max 3)
-        end
-    end
-
-    Service->>Pimcore: POST status=COMPLETED
-    Pimcore-->>Service: ACK COMPLETED
+## Scenario: FastAPI crashes AFTER COMPLETED is sent
+```python
+resp = await client.post(COMPLETED)
+if ack:
+    self.state_store.mark_completed(ingestion_id)
 ```
+This ensures:
+- No “false completed” locally
+- PIM Core and FastAPI agree on final state
+One thing to understand (not a bug, just reality) : I am chunk-exactly-once, not record-exactly-once.
+
+
+## Implemented deterministic ingestion
+This is done to handle fault cases like
+- In cases where the fast-api microservice server experience some fault and the service gets restarted for some reason 
+    - In this case my microservice should be able to resume the data streaming from the last known chunk that was sent and was successfully acknowledged by pim-core callback url
+### Steps that I took make sure that my micro service is fault tolerant 
+- Defined a deterministic ingestion identity
+    - ```python
+        raw = f"{file_path}|{file_type}"
+        ingestion_id = sha256(raw)
+        ```
+    - Why it matters
+        - Same file → same ingestion
+        - Enables:
+            - resume after crash
+            - idempotent re-ingestion
+            - prevention of duplicate processing
+    - Fault tolerance achieved : 
+        - Service can restart and still know which ingestion it was processing.
+- Decoupled API request lifecycle from ingestion execution
+    - Used BackgroundTasks to run ingestion asynchronously.
+    - Why it matters:
+        - API remains responsive
+        - Ingestion can be retried or resumed independently
+    - Fault tolerance achieved
+        - API crash ≠ ingestion logic corruption
+- Introduced a persistent ingestion state store
+    - Created IngestionStateStore backed by SQLite
+    - Persisted:
+        - ingestion_id
+        - last_chunk
+        - total_records
+        - status
+    - ```python
+            CREATE TABLE ingestion_state (
+                ingestion_id TEXT PRIMARY KEY,
+                last_chunk INTEGER,
+                total_records INTEGER,
+                status TEXT
+            )
+        ```
+    - Why it matters
+        - State survives:
+            - process crashes
+            - container restarts
+            - redeployments
+    - Fault tolerance achieved
+        - No reliance on in-memory state
+- Persisted progress only after external ACK
+    - Updated state store only after PIM-core ACK.
+    - ```python
+        self.state_store.update_chunk(ingestion_id, chunk_number, total_records)
+        ```
+    - Why it matters
+        - Prevents “false progress”
+        - Guarantees:
+            - at-least-once delivery
+            - no skipped chunks
+        - Fault tolerance achieved
+            - Partial network failures do not corrupt progress
+- Implemented chunk-level idempotency
+    - Each chunk has a deterministic identity:
+    - ```python
+        chunk_id = f"{ingestion_id}:{chunk_number}"
+        ```
+    - Why it matters
+        - Duplicate sends are harmless
+        - Retries do not cause duplication
+    - Fault tolerance achieved
+        - Safe retries
+        - Safe replay after crash
+- Added checksum-based data integrity validation
+    - Canonical JSON serialization
+    - SHA-256 checksum per chunk
+    - ```python
+        checksum = sha256(canonical_dumps(records))
+        ```
+    - Why it matters
+        - Detects:
+            - partial transmissions
+            - corrupted payloads
+            - proxy truncation
+    - Fault tolerance achieved
+        - Silent corruption is impossible
+- Enforced strict chunk ordering
+    - PIM-core rejects out-of-order chunks
+    - Producer retries correctly
+    - ```python
+        if chunk_number != last + 1:
+        return OUT_OF_ORDER
+        ```
+    - Why it matters
+        - Prevents race conditions
+        - Guarantees deterministic replay
+    - Fault tolerance achieved
+        - No ordering bugs after restarts
+- Designed resume logic on service startup
+    - On start of ingestion:
+    - ```python
+        last_chunk = state_store.get_last_chunk(ingestion_id)
+        chunk_number = last_chunk + 1
+        ```
+    - Why it matters
+        - Skips already ACKed chunks
+        - Continues exactly where it stopped
+    - Fault tolerance achieved
+        - Crash-safe streaming
+- Persisted and resumed total_records
+    - Stored total_records in DB
+    - Reloaded it on restart
+    - ```python
+        self.total_records = state_store.get_total_records(ingestion_id)
+        ```
+    - Why it matters
+        - Accurate metrics across restarts
+        - No double-counting
+    - Fault tolerance achieved
+        - Correct completion reporting
+- Ensured storage availability at runtime
+    - Created DB directory automatically if missing
+    - ```python
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        ```
+    - Why it matters
+        - First run works
+        - Docker restarts work
+        - No manual setup
+    - Fault tolerance achieved
+        - No startup-time failures
+- Used streaming I/O instead of loading files into memory
+    - Used ijson + fsspec
+    - ```python
+        for record in ijson.items(file, "item"):
+        ```
+    - Why it matters
+        - Large files don’t crash the process
+        - Memory usage is bounded
+    - Fault tolerance achieved
+        - Stable under large workloads
+- Explicit completion handshake
+    - Sent a final COMPLETED event
+    - Marked ingestion complete only after ACK
+    - ```python
+        self.state_store.mark_completed(ingestion_id)
+        ```
+    - Why it matters
+        - Prevents premature completion
+        - Enables downstream consistency
+    - Fault tolerance achieved
+        - Clean termination semantics
+### My ingestion_id is deterministic
+```python
+def generate_ingestion_id(file_path: str, file_type: str) -> str:
+    raw = f"{file_path}|{file_type}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+```
+This means:
+- Same file_path + same file_type = same ingestion_id
+So when I ingest the same file again:
+- I am continuing the same ingestion
+- Not starting a new one
+My resume logic is doing exactly what I intended to
+In ```stream_and_push```:
+```python
+self.total_records = self.state_store.get_total_records(ingestion_id)
+```
+So:
+- If the file was already ingested once
+- total_records already exists in DB
+- I resume counting from that number
+
+Then during streaming:
+```python
+self.total_records += 1
+```
+So totals accumulate, not reset. This is intentional behavior, not an accident.
