@@ -14,3 +14,6 @@ tests/test_data/
 
 # Logs
 */logs/*
+tests/unit_tests/logs/test_debug.log
+tests/unit_tests/logs/test_error.log
+tests/unit_tests/logs/test_info.log
