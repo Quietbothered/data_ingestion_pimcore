@@ -661,3 +661,15 @@ This enables:
 - Backfills
 - Reprocessing corrupted data
 - Re-running ingestion after logic changes
+
+This is the request json that pim-core will have to send to fast-api data ingestion micro-service
+```json
+{
+  "file_path": "/home/aditya/github/data_ingestion_pimcore/tests/test_data/PIM_PRODIDSKU_20251222183200000_001.json",
+  "file_type": "json",
+  "callback_url": "http://127.0.0.1:9000/callback",
+  "chunk_size_by_records": 10,
+  "chunk_size_by_memory": 0,
+  "re_ingestion":true
+}
+```
