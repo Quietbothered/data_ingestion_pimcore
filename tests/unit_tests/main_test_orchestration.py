@@ -5,7 +5,7 @@ import pytest
 class TestSuiteStart:
 
     def test_suite_start(self, test_info_logger):
-        from conf.logging_config import TestLoggingConfig
+        from .utils.logger import TestLoggingConfig
 
         test_info_logger.info("========== TEST SUITE STARTED ==========")
         test_info_logger.info(f"Log directory: {TestLoggingConfig.LOG_DIR}")
