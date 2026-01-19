@@ -675,3 +675,61 @@ This is the request json that pim-core will have to send to fast-api data ingest
   "re_ingestion":true
 }
 ```
+
+## Added test cases for the microservice
+### How to run test cases
+First you go into this directory using the command below
+```bash
+cd /home/aditya/github/data_ingestion_pimcore
+```
+Then you run this command to run all the test cases for this micro-service
+```bash
+pytest tests/unit_tests/main_test_orchestration.py
+```
+### Why do these test cases exists
+This micro-service is not a best-effort ingestion system.
+It is a correctness-first, failure-aware ingestion engine designed to operate reliably under real-world failure conditions such as crashes, restarts, partial network outages, and external system inconsistencies.
+
+Because of this, tests are not optional, and they are not written merely to improve code coverage.
+
+They exist to prove invariants.
+
+### What These Tests Are Explicitly Designed to Guarantee
+Each test exists to enforce a system contract that must remain true even as the code evolves.
+
+#### **Crash Safety Guarantees**
+The ingestion pipeline must remain correct if:
+- The FastAPI process crashes
+- The container restarts
+- The machine reboots
+
+Tests validate that:
+- Progress is persisted
+- No false completion occurs
+- Resume logic starts from the correct chunk
+- No already-ACKed chunk is resent incorrectly
+
+#### **Restart & Resume Determinism**
+This system relies on persistent ingestion state rather than in-memory assumptions.
+
+Tests ensure:
+- Resume starts from last_chunk + 1
+- total_records is restored correctly
+- Resume and re-ingestion semantics are not conflated
+- Versioned ingestion behaves predictably
+
+A single regression here causes:
+- Duplicate data
+- Skipped data
+- Inconsistent Pimcore state
+
+#### **Exactly-Once Chunk Semantics (By Design)**
+This service is chunk-exactly-once, not record-exactly-once.
+
+Tests assert that:
+- Each chunk has a deterministic identity
+- Duplicate chunk sends are harmless
+- Out-of-order chunks are rejected
+- Retry logic does not break ordering guarantees
+
+

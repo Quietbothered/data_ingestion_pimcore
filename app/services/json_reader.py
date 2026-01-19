@@ -44,8 +44,6 @@ class JsonIngestionService:
 
         chunk = []
         chunk_bytes = 0
-        # chunk_number = 0
-        # self.total_records = 0
 
         # Resume total_records from persisted state
         """
@@ -75,19 +73,7 @@ class JsonIngestionService:
                                 chunk_bytes,
                                 record_bytes
                             ):
-                                # await self._send_chunk(
-                                #     client,
-                                #     request.callback_url,
-                                #     ingestion_id,
-                                #     chunk_number,
-                                #     chunk,
-                                #     False
-                                # )
-                                # chunk_number += 1
-                                # chunk.clear()
-                                # chunk_bytes = 0
-
-                                # 🔴 SKIP already ACKed chunks
+                                # SKIP already ACKed chunks
                                 debug_logger.debug(f"JsonIngestionService.stream_and_push| Operation : if self._should_flush | Only send chunks that are not ACKed by pim-core : {chunk_number > last_chunk}")
                                 if chunk_number > last_chunk:
                                     await self._send_chunk(
@@ -110,14 +96,6 @@ class JsonIngestionService:
             # Final chunk
             if chunk:
                 debug_logger.debug(f"JsonIngestionService.stream_and_push | Processing chunks | ingestion_id = {ingestion_id} | chunk_number = {chunk_number}")
-                # await self._send_chunk(
-                #     client,
-                #     request.callback_url,
-                #     ingestion_id,
-                #     chunk_number,
-                #     chunk,
-                #     True
-                # )
                 debug_logger.debug(f"JsonIngestionService.stream_and_push| Operation : if chunk = {chunk} | Only send chunks that are not ACKed by pim-core : {chunk_number > last_chunk}")
                 if chunk_number > last_chunk:
                     await self._send_chunk(
@@ -183,17 +161,13 @@ class JsonIngestionService:
         }
 
         for attempt in range(3):
+            debug_logger.debug(f"JsonIngestionService._send_chunk | Attempting to send chunk | attempt = {attempt}")
             try:
                 resp = await client.post(
                     url,
                     content=orjson.dumps(payload, default=orjson_default),
                     headers={"Content-Type": "application/json"}
                 )
-
-                # Re-write the logic using ACK validation for fault tolerant system and re-tries
-                # resp.raise_for_status()
-                # ack_response = resp.json()
-                # ack = ack_response.get("ack")
 
                 # Added checksum mechanism to make sure chunk wise data ingegrity along with ack validation for fault tolerant system and re-tries
                 ack_response = resp.json()
